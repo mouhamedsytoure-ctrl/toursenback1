@@ -20,8 +20,8 @@ use App\Http\Controllers\Api\ProfilController;
 // ---------- PUBLIC ----------
 Route::post('/login', [AuthController::class, 'login']);
 
-Route::get('/public/immeubles', [VitrineController::class, 'immeubles']);
-Route::get('/public/immeubles/{immeuble}', [VitrineController::class, 'show']);
+Route::get('/public/{slug}/immeubles', [VitrineController::class, 'immeubles']);
+Route::get('/public/{slug}/immeubles/{immeuble}', [VitrineController::class, 'show']);
 
 // ---------- PROTEGE (jeton requis) ----------
 Route::middleware('auth:sanctum')->group(function () {

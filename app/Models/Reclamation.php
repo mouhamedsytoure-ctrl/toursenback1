@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToAgence;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Reclamation extends Model
 {
+    use BelongsToAgence;
+
     protected $fillable = [
         'user_id', 'logement_id', 'objet', 'description',
         'priorite', 'statut', 'escalade_super_admin', 'traite_par',

@@ -14,13 +14,17 @@ use Illuminate\Support\Str;
 class LocataireController extends Controller
 {
     // GET /api/locataires
-    public function index()
+    public function index(Request $request)
     {
-        $locataires = User::where('role', 'locataire')
-            ->with(['contrats' => fn ($q) => $q->where('statut', 'actif')->with('logement.immeuble')])
-            ->get();
+        $query = User::where('role', 'locataire')
+            ->with(['contrats' => fn ($q) => $q->where('statut', 'actif')->with('logement.immeuble')]);
 
-        return response()->json($locataires);
+        // Le compte plateforme voit les locataires de toutes les agences
+        if (! $request->user()->is_platform_admin) {
+            $query->where('agence_id', $request->user()->agence_id);
+        }
+
+        return response()->json($query->get());
     }
 
     /**
@@ -48,7 +52,7 @@ class LocataireController extends Controller
         $genere = ! $request->filled('password');
         $plain  = $genere ? Str::random(8) : $data['password'];
 
-        $res = DB::transaction(function () use ($data, $plain) {
+        $res = DB::transaction(function () use ($data, $plain, $request) {
             $user = User::create([
                 'name'      => $data['name'],
                 'email'     => $data['email'],
@@ -56,6 +60,7 @@ class LocataireController extends Controller
                 'password'  => Hash::make($plain),
                 'role'      => 'locataire',
                 'is_active' => true,
+                'agence_id' => $request->user()->agence_id,
             ]);
 
             $contrat = Contrat::create([

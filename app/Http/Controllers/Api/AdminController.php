@@ -16,9 +16,14 @@ class AdminController extends Controller
     {
         abort_unless($request->user()->isSuperAdmin(), 403);
 
-        return response()->json(
-            User::where('role', 'admin')->with('adminPermissions')->get()
-        );
+        $query = User::where('role', 'admin')->with('adminPermissions');
+
+        // Le compte plateforme voit les admins de toutes les agences
+        if (! $request->user()->is_platform_admin) {
+            $query->where('agence_id', $request->user()->agence_id);
+        }
+
+        return response()->json($query->get());
     }
 
     private const MODULES = [
@@ -62,7 +67,7 @@ class AdminController extends Controller
             ], self::MODULES);
         }
 
-        $admin = DB::transaction(function () use ($data, $permissions) {
+        $admin = DB::transaction(function () use ($data, $permissions, $request) {
             $admin = User::create([
                 'name'      => $data['name'],
                 'email'     => $data['email'],
@@ -70,6 +75,7 @@ class AdminController extends Controller
                 'password'  => Hash::make($data['password']),
                 'role'      => 'admin',
                 'is_active' => true,
+                'agence_id' => $request->user()->agence_id,
             ]);
 
             foreach ($permissions as $p) {

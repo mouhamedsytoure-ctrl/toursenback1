@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToAgence;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Media extends Model
 {
+    use BelongsToAgence;
+
     protected $table = 'medias';
 
     protected $fillable = [

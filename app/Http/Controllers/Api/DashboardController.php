@@ -31,6 +31,12 @@ class DashboardController extends Controller
         $totalLogements = Logement::count();
         $loues          = Logement::where('statut', 'loue')->count();
 
+        // User n'a pas de scope automatique : filtre explicite (sauf compte plateforme)
+        $locatairesQuery = User::where('role', 'locataire');
+        if (! $request->user()->is_platform_admin) {
+            $locatairesQuery->where('agence_id', $request->user()->agence_id);
+        }
+
         return response()->json([
             'periode'            => $periode,
             'encaisse'           => $encaisse,
@@ -42,7 +48,7 @@ class DashboardController extends Controller
             'impayes_montant'    => (float) (clone $impayes)->sum('montant'),
             'reclamations_ouvertes' => Reclamation::where('statut', '!=', 'resolu')->count(),
             'nb_immeubles'       => Immeuble::count(),
-            'nb_locataires'      => User::where('role', 'locataire')->count(),
+            'nb_locataires'      => $locatairesQuery->count(),
         ]);
     }
 }

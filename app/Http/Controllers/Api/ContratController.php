@@ -77,7 +77,7 @@ class ContratController extends Controller
         $plain  = $genere ? Str::random(8) : $data['password'];
         $nomComplet = trim(($data['preneur_prenom'] ?? '') . ' ' . $data['preneur_nom']);
 
-        $res = DB::transaction(function () use ($data, $plain, $nomComplet) {
+        $res = DB::transaction(function () use ($data, $plain, $nomComplet, $request) {
             $user = User::create([
                 'name'      => $nomComplet,
                 'email'     => $data['preneur_email'],
@@ -85,6 +85,7 @@ class ContratController extends Controller
                 'password'  => Hash::make($plain),
                 'role'      => 'locataire',
                 'is_active' => true,
+                'agence_id' => $request->user()->agence_id,
             ]);
 
             $contrat = Contrat::create([

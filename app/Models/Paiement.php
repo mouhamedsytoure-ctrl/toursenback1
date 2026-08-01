@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToAgence;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
 class Paiement extends Model
 {
+    use BelongsToAgence;
+
     protected $fillable = [
         'contrat_id', 'periode', 'montant', 'mode_paiement', 'statut',
         'date_paiement', 'reference_transaction', 'recu_numero',

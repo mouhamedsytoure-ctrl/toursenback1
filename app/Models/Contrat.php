@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToAgence;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Contrat extends Model
 {
+    use BelongsToAgence;
+
     protected $fillable = [
         'logement_id', 'user_id',
         'preneur_nom', 'preneur_prenom', 'preneur_civilite', 'preneur_telephone', 'preneur_email',
