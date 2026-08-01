@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class User extends Authenticatable
@@ -12,7 +13,7 @@ class User extends Authenticatable
     use HasApiTokens, Notifiable;
 
     protected $fillable = [
-        'name', 'email', 'password', 'role', 'telephone', 'is_active',
+        'name', 'email', 'password', 'role', 'telephone', 'is_active', 'agence_id',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -21,6 +22,7 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password'          => 'hashed',
         'is_active'         => 'boolean',
+        'is_platform_admin' => 'boolean',
     ];
 
     // --- Roles ---
@@ -29,6 +31,13 @@ class User extends Authenticatable
     public function isLocataire(): bool  { return $this->role === 'locataire'; }
 
     // --- Relations ---
+    // Simple relation, sans le trait BelongsToAgence : pas de scope ni de hook
+    // de creation ici, pour ne pas provoquer la recursion avec Sanctum.
+    public function agence(): BelongsTo
+    {
+        return $this->belongsTo(Agence::class);
+    }
+
     public function adminPermissions(): HasMany
     {
         return $this->hasMany(AdminPermission::class);

@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\ProfilController;
 
 // ---------- PUBLIC ----------
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
 
 Route::get('/public/{slug}/immeubles', [VitrineController::class, 'immeubles']);
 Route::get('/public/{slug}/immeubles/{immeuble}', [VitrineController::class, 'show']);
