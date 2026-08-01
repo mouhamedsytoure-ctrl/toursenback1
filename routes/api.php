@@ -15,9 +15,6 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\EspaceLocataireController;
 use App\Http\Controllers\Api\ContratController;
 use App\Http\Controllers\Api\ProfilController;
-use App\Http\Controllers\Api\TransfertController;
-use App\Http\Controllers\Api\BaremeController;
-use App\Http\Controllers\Api\EnvoiController; 
 
 
 // ---------- PUBLIC ----------
@@ -98,17 +95,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/contrats/{contrat}/pdf', [\App\Http\Controllers\Api\ContratController::class, 'pdf']);
 
     Route::get('/paiements/{paiement}/quittance', [\App\Http\Controllers\Api\PaiementController::class, 'quittance']);
-
-
-    // --- Module Transferts (Western Union / RIA / Orange Money) ---
-    Route::get('/transferts', [TransfertController::class, 'index']);
-    Route::post('/transferts', [TransfertController::class, 'store']);
-    Route::delete('/transferts/{transfert}', [TransfertController::class, 'destroy']);
-    Route::get('/baremes', [BaremeController::class, 'index']);
-    Route::put('/baremes', [BaremeController::class, 'update']);
-
-    Route::get('/envois', [EnvoiController::class, 'index']);
-Route::post('/envois', [EnvoiController::class, 'store']);
-Route::delete('/envois/{envoi}', [EnvoiController::class, 'destroy']);
 
 });

@@ -24,7 +24,6 @@ class AdminController extends Controller
     private const MODULES = [
         'immeubles', 'logements', 'contrats', 'locataires',
         'paiements', 'reclamations', 'terrains', 'medias',
-        'transferts', 'baremes', 'envois',
     ];
 
     /**
