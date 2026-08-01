@@ -44,7 +44,7 @@ class VitrineController extends Controller
     // Detail public : seulement les logements DISPONIBLES, groupables par etage cote client.
     public function show(string $slug, int $immeuble)
     {
-        $this->resoudreAgence($slug);
+        $agence = $this->resoudreAgence($slug);
 
         $immeuble = Immeuble::findOrFail($immeuble);
         $immeuble->load([
@@ -53,6 +53,13 @@ class VitrineController extends Controller
             'logements' => fn ($q) => $q->where('statut', 'disponible')->with('medias'),
         ]);
 
-        return response()->json($immeuble);
+        return response()->json([
+            'agence' => [
+                'nom'       => $agence->nom,
+                'logo'      => $agence->logo,
+                'telephone' => $agence->telephone,
+            ],
+            'immeuble' => $immeuble,
+        ]);
     }
 }
