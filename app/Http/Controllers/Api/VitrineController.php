@@ -24,6 +24,18 @@ class VitrineController extends Controller
         return $agence;
     }
 
+    // Branding + coordonnees de contact renvoyes a la vitrine publique.
+    // whatsapp reprend le telephone si aucun numero WhatsApp distinct n'est renseigne.
+    private function brandingAgence(Agence $agence): array
+    {
+        return [
+            'nom'       => $agence->nom,
+            'logo'      => $agence->logo,
+            'telephone' => $agence->telephone,
+            'whatsapp'  => $agence->whatsapp ?: $agence->telephone,
+        ];
+    }
+
     // GET /api/public/{slug}/immeubles  (PUBLIC, sans connexion)
     // Liste des immeubles de l'agence avec le nombre de logements disponibles,
     // plus les infos de l'agence pour le branding du front (nom, logo, telephone).
@@ -38,11 +50,7 @@ class VitrineController extends Controller
             ->get(['id', 'nom', 'adresse', 'ville', 'photo_couverture', 'mis_en_avant']);
 
         return response()->json([
-            'agence' => [
-                'nom'       => $agence->nom,
-                'logo'      => $agence->logo,
-                'telephone' => $agence->telephone,
-            ],
+            'agence'    => $this->brandingAgence($agence),
             'immeubles' => $immeubles,
         ]);
     }
@@ -61,11 +69,7 @@ class VitrineController extends Controller
         ]);
 
         return response()->json([
-            'agence' => [
-                'nom'       => $agence->nom,
-                'logo'      => $agence->logo,
-                'telephone' => $agence->telephone,
-            ],
+            'agence'   => $this->brandingAgence($agence),
             'immeuble' => $immeuble,
         ]);
     }

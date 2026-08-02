@@ -85,6 +85,7 @@ class AuthController extends Controller
                 'unique:agences,slug', Rule::notIn(self::SLUGS_RESERVES),
             ],
             'agence_telephone' => ['nullable', 'string', 'max:255'],
+            'agence_whatsapp'  => ['nullable', 'string', 'max:255'],
             'agence_ville'     => ['nullable', 'string', 'max:255'],
             // Formule que le visiteur a cliquee sur la page tarifs : purement informatif
             // (aide a la relance manuelle), n'accorde jamais les droits de cette formule.
@@ -102,6 +103,7 @@ class AuthController extends Controller
                 'nom'              => $data['agence_nom'],
                 'slug'             => $data['agence_slug'],
                 'telephone'        => $data['agence_telephone'] ?? null,
+                'whatsapp'         => $data['agence_whatsapp'] ?? null,
                 'ville'            => $data['agence_ville'] ?? null,
                 'plan'             => 'essai',
                 'plan_souhaite'    => $data['plan_souhaite'] ?? null,
@@ -159,6 +161,8 @@ class AuthController extends Controller
                 'slug'             => $agence->slug,
                 'logo'             => $agence->logo,
                 'telephone'        => $agence->telephone,
+                'whatsapp'         => $agence->whatsapp,
+                'adresse'          => $agence->adresse,
                 'ville'            => $agence->ville,
                 'plan'             => $agence->plan,
                 'plan_souhaite'    => $agence->plan_souhaite,

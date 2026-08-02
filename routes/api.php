@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\EspaceLocataireController;
 use App\Http\Controllers\Api\ContratController;
 use App\Http\Controllers\Api\ProfilController;
 use App\Http\Controllers\Api\PlateformeController;
+use App\Http\Controllers\Api\AgenceController;
 
 
 // ---------- PUBLIC ----------
@@ -30,6 +31,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
+
+    // Profil de l'agence connectee (coordonnees, whatsapp, branding)
+    Route::get('/agence', [AgenceController::class, 'show']);
+    Route::put('/agence', [AgenceController::class, 'update']);
 
     // ---------- CONSOLE PLATEFORME (proprietaire uniquement) ----------
     Route::middleware('plateforme')->prefix('plateforme')->group(function () {

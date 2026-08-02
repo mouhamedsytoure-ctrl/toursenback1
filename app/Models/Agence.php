@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Agence extends Model
 {
     protected $fillable = [
-        'nom', 'slug', 'logo', 'telephone', 'email', 'adresse', 'ville',
+        'nom', 'slug', 'logo', 'telephone', 'whatsapp', 'email', 'adresse', 'ville',
         'representant_legal', 'representant_fonction', 'ninea', 'rccm',
         'plan', 'plan_souhaite', 'statut', 'quota_logements', 'max_utilisateurs', 'essai_termine_le',
     ];
