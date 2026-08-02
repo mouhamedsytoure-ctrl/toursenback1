@@ -33,15 +33,19 @@ class VerifierAbonnement
             return $next($request);
         }
 
-        $motif = $agence->statut === 'suspendu'
-            ? 'suspendu'
-            : 'essai_termine';
+        $motif = $agence->motifBlocage();
+
+        $messages = [
+            'suspendu_autre'   => "Votre acces a ete suspendu. Contactez le support pour regulariser la situation.",
+            'suspendu_paiement'=> "Votre acces a ete suspendu pour defaut de paiement. Reglez votre abonnement pour le retrouver.",
+            'essai_termine'    => "Votre periode d'essai est terminee. Choisissez une formule pour continuer.",
+            'abonnement_expire'=> "Votre abonnement est arrive a expiration. Renouvelez-le pour continuer.",
+        ];
 
         return response()->json([
-            'message' => $motif === 'suspendu'
-                ? "L'acces a ete suspendu. Contactez le support."
-                : "Votre periode d'essai est terminee. Choisissez une formule pour continuer.",
-            'motif'   => $motif,
+            'message'          => $messages[$motif],
+            'motif'            => $motif,
+            'note_suspension'  => $agence->motif_suspension === 'autre' ? $agence->note_suspension : null,
             'agence'  => [
                 'nom'              => $agence->nom,
                 'plan'             => $agence->plan,

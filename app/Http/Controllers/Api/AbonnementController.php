@@ -29,6 +29,14 @@ class AbonnementController extends Controller
         $agence = $request->user()->agence;
         abort_unless($agence, 404, "Aucune agence rattachee a ce compte.");
 
+        // Suspendue pour un motif autre que le paiement : payer ne changerait
+        // rien, il faut regler ca directement avec le proprietaire de la plateforme.
+        abort_if(
+            ! $agence->blocagePaiementPossible(),
+            403,
+            "Votre compte est suspendu pour un motif necessitant un contact direct. Le paiement ne suffit pas a le reactiver."
+        );
+
         $montant = config("plans.{$data['plan']}.prix_mensuel");
 
         $facture = FactureAbonnement::create([
@@ -94,6 +102,8 @@ class AbonnementController extends Controller
                 'plan'                  => $facture->plan,
                 'plan_souhaite'         => null,
                 'statut'                => 'actif',
+                'motif_suspension'      => null,
+                'note_suspension'       => null,
                 'quota_logements'       => config("plans.{$facture->plan}.quota_logements"),
                 'max_utilisateurs'      => config("plans.{$facture->plan}.max_utilisateurs"),
                 // Reconduit 30 jours a partir de maintenant, ou depuis la fin

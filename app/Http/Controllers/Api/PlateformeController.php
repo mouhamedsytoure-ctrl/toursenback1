@@ -44,6 +44,8 @@ class PlateformeController extends Controller
                 'plan_souhaite_libelle' => $a->plan_souhaite ? ($plans[$a->plan_souhaite]['libelle'] ?? $a->plan_souhaite) : null,
                 'prix_mensuel'      => $prix,
                 'statut'            => $a->statut,
+                'motif_suspension'  => $a->motif_suspension,
+                'note_suspension'   => $a->note_suspension,
                 'active'            => $a->estActive(),
                 'quota_logements'   => $a->quota_logements,
                 'max_utilisateurs'  => $a->max_utilisateurs,
@@ -96,6 +98,8 @@ class PlateformeController extends Controller
             'statut'           => ['nullable', 'in:actif,suspendu,expire'],
             'quota_logements'  => ['nullable', 'integer', 'min:0'],
             'max_utilisateurs' => ['nullable', 'integer', 'min:0'],
+            'motif_suspension' => ['nullable', 'in:paiement,autre'],
+            'note_suspension'  => ['nullable', 'string', 'max:500'],
         ]);
 
         // Changer de plan applique le quota et la limite d'utilisateurs de ce plan,
@@ -109,7 +113,16 @@ class PlateformeController extends Controller
             }
         }
 
-        $agence->update(array_filter($data, fn ($v) => $v !== null));
+        $agence->fill(array_filter($data, fn ($v) => $v !== null));
+
+        // Reactiver efface systematiquement le motif de suspension (array_filter
+        // ci-dessus retirerait sinon ces null et laisserait une note perimee).
+        if (($data['statut'] ?? null) === 'actif') {
+            $agence->motif_suspension = null;
+            $agence->note_suspension = null;
+        }
+
+        $agence->save();
 
         return response()->json($agence->fresh());
     }
