@@ -36,8 +36,8 @@
 </style>
 </head>
 <body>
-  <div class="logo"><img src="{{ $logo }}" alt="SITS"></div>
-  <div class="entete">Medina rue 13 X 12, Dakar, Senegal : 77 566 03 77 / 77 735 37 72</div>
+  @if(!empty($logo))<div class="logo"><img src="{{ $logo }}" alt="{{ $agence['nom'] ?? '' }}"></div>@endif
+  <div class="entete">{{ $agence['adresse'] ?? '' }}, {{ $agence['ville'] ?? '' }} : {{ $agence['telephone'] ?? '' }}</div>
 
   <div class="destwrap">
     <div class="dest">

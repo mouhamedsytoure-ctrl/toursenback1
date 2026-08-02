@@ -19,22 +19,22 @@
 </style>
 </head>
 <body>
-  <div class="logo"><img src="{{ $logo }}" alt="Toursen"></div>
+  @if(!empty($logo))<div class="logo"><img src="{{ $logo }}" alt="{{ $agence['nom'] ?? '' }}"></div>@endif
   <div class="entete">
-    Rue 13x12 Médina, Dakar, Sénégal, Tel : 3388227328 / 775660377 e-mail :<br>
-    toursen.immo@gmail.com
+    {{ $agence['adresse'] ?? '' }}, {{ $agence['ville'] ?? '' }}, Tel : {{ $agence['telephone'] ?? '' }} e-mail :<br>
+    {{ $agence['email'] ?? '' }}
   </div>
   <h2 class="titre">CONTRAT DE LOCATION</h2>
 
   <p><span class="b">Entre les soussignés :</span></p>
-  <p><span class="b">Toursen Immobilier</span> représenté par <span class="b">Djibril TIMERA</span>, ci-après dénommé, le bailleur,</p>
+  <p><span class="b">{{ $agence['nom'] ?? '' }}</span> représenté par <span class="b">{{ $agence['representant'] ?? '' }}</span>, ci-après dénommé, le bailleur,</p>
   <p><span class="b">D'une part,</span></p>
   <p><span class="b">ET</span></p>
   <p>{{ $civ }} <span class="b">{{ $nom }}</span>, ci-après dénommé le preneur,</p>
   <p><span class="b">D'autre part,</span></p>
 
   <p>Il a été arrêté et convenu ce qui suit :</p>
-  <p>Le Bailleur <span class="b">Toursen Immobilier</span> donne en location,</p>
+  <p>Le Bailleur <span class="b">{{ $agence['nom'] ?? '' }}</span> donne en location,</p>
   <p>Le Preneur <span class="b">{{ $nom }}</span> qui accepte,</p>
   <p>Les locaux dont la désignation suit :</p>
 
@@ -82,7 +82,7 @@
 
   <table class="sign">
     <tr>
-      <td style="text-align:center;"><span class="b">LE BAILLEUR</span><br><br>Toursen Immobilier<br>Djibril TIMERA</td>
+      <td style="text-align:center;"><span class="b">LE BAILLEUR</span><br><br>{{ $agence['nom'] ?? '' }}<br>{{ $agence['representant'] ?? '' }}</td>
       <td style="text-align:center;"><span class="b">LE PRENEUR</span><br><i>Précédé de la mention "lu et approuvé"</i><br><br>{{ $nom }}</td>
     </tr>
   </table>
