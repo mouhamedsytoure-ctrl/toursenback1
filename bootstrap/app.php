@@ -13,6 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
+        $middleware->throttleApi();
 
         $middleware->alias([
             'abonnement' => \App\Http\Middleware\VerifierAbonnement::class,

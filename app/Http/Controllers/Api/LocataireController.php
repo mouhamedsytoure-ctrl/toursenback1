@@ -39,7 +39,7 @@ class LocataireController extends Controller
             'name'          => ['required', 'string', 'max:255'],
             'email'         => ['required', 'email', 'unique:users,email'],
             'telephone'     => ['nullable', 'string', 'max:255'],
-            'password'      => ['nullable', 'string', 'min:6'],
+            'password'      => ['nullable', 'string', 'min:8'],
             'logement_id'   => ['required', 'exists:logements,id'],
             'date_debut'    => ['required', 'date'],
             'date_fin'      => ['nullable', 'date', 'after:date_debut'],

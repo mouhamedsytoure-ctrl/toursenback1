@@ -64,7 +64,7 @@ class ContratController extends Controller
             'preneur_piece_numero'   => ['nullable', 'string', 'max:255'],
             'composition'            => ['nullable', 'string', 'max:255'],
             'usage'                  => ['nullable', 'string', 'max:100'],
-            'password'               => ['nullable', 'string', 'min:6'],
+            'password'               => ['nullable', 'string', 'min:8'],
             'logement_id'            => ['required', 'exists:logements,id'],
             'date_debut'             => ['required', 'date'],
             'date_fin'               => ['required', 'date', 'after:date_debut'],

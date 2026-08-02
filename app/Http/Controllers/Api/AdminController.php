@@ -55,7 +55,7 @@ class AdminController extends Controller
             'name'                    => ['required', 'string', 'max:255'],
             'email'                   => ['required', 'email', 'unique:users,email'],
             'telephone'               => ['nullable', 'string', 'max:255'],
-            'password'                => ['required', 'string', 'min:6'],
+            'password'                => ['required', 'string', 'min:8'],
             'permissions'             => ['array'],
             'permissions.*.module'    => ['required', 'string'],
             'permissions.*.can_view'  => ['boolean'],
@@ -112,6 +112,12 @@ class AdminController extends Controller
     public function updatePermissions(Request $request, User $user)
     {
         abort_unless($request->user()->isSuperAdmin(), 403);
+        // Empeche un super_admin de modifier les droits d'un admin d'une autre agence
+        // (User n'a pas de scope automatique, ce controle doit etre explicite).
+        abort_unless(
+            $request->user()->is_platform_admin || $user->agence_id === $request->user()->agence_id,
+            404
+        );
         abort_unless($user->isAdmin(), 422, "Cet utilisateur n'est pas un admin.");
 
         $data = $request->validate([

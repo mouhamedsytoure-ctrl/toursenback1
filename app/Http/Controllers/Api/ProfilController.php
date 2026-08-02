@@ -21,7 +21,7 @@ class ProfilController extends Controller
             'name'      => ['sometimes', 'string', 'max:255'],
             'email'     => ['sometimes', 'email', Rule::unique('users', 'email')->ignore($user->id)],
             'telephone' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'password'  => ['sometimes', 'nullable', 'string', 'min:6'],
+            'password'  => ['sometimes', 'nullable', 'string', 'min:8'],
         ]);
 
         if (array_key_exists('name', $data))      $user->name = $data['name'];
