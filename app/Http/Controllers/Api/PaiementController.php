@@ -84,8 +84,13 @@ class PaiementController extends Controller
         $dateObj = $paiement->date_paiement ?? $paiement->created_at;
         $date = $dateObj ? \Illuminate\Support\Carbon::parse($dateObj)->format('d/m/Y') : now()->format('d/m/Y');
 
+        // Chaque agence emet ses quittances a son propre nom.
+        $ag = $paiement->agence ?: request()->user()?->agence;
+        $A  = $ag ? $ag->entete() : [];
+
         $data = [
-            'logo'    => public_path('logo-toursen.jpeg'),
+            'agence'  => $A,
+            'logo'    => $A['logo'] ?? null,
             'nom'     => $nom,
             'adresse' => $adresse,
             'mois'    => $this->moisFr($paiement->periode),

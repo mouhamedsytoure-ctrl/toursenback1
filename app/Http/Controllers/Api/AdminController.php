@@ -41,6 +41,16 @@ class AdminController extends Controller
     {
         abort_unless($request->user()->isSuperAdmin(), 403);
 
+        // Limite de comptes admin/super_admin de la formule (0 = illimite).
+        $agence = $request->user()->agence;
+        if ($agence && $agence->utilisateursAtteint()) {
+            return response()->json([
+                'message' => "Vous avez atteint la limite de {$agence->max_utilisateurs} compte(s) de votre formule.",
+                'motif'   => 'utilisateurs_atteint',
+                'max'     => $agence->max_utilisateurs,
+            ], 402);
+        }
+
         $data = $request->validate([
             'name'                    => ['required', 'string', 'max:255'],
             'email'                   => ['required', 'email', 'unique:users,email'],

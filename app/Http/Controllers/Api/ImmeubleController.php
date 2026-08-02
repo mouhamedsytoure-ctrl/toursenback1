@@ -51,13 +51,21 @@ class ImmeubleController extends Controller
         $this->authorizeAction($request, 'update');
 
         $data = $request->validate([
-            'nom'         => ['sometimes', 'string', 'max:255'],
-            'adresse'     => ['nullable', 'string', 'max:255'],
-            'ville'       => ['sometimes', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'latitude'    => ['nullable', 'numeric'],
-            'longitude'   => ['nullable', 'numeric'],
+            'nom'          => ['sometimes', 'string', 'max:255'],
+            'adresse'      => ['nullable', 'string', 'max:255'],
+            'ville'        => ['sometimes', 'string', 'max:255'],
+            'description'  => ['nullable', 'string'],
+            'latitude'     => ['nullable', 'numeric'],
+            'longitude'    => ['nullable', 'numeric'],
+            'mis_en_avant' => ['sometimes', 'boolean'],
         ]);
+
+        // Mise en avant sur la vitrine : reservee au plan VIP.
+        if (array_key_exists('mis_en_avant', $data)) {
+            $agence = $request->user()->agence;
+            $estVip = $request->user()->is_platform_admin || ($agence && $agence->plan === 'illimite');
+            abort_unless($estVip, 403, "La mise en avant des annonces est reservee a la formule VIP.");
+        }
 
         $immeuble->update($data);
         return response()->json($immeuble);

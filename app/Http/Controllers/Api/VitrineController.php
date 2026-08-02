@@ -14,6 +14,11 @@ class VitrineController extends Controller
     private function resoudreAgence(string $slug): Agence
     {
         $agence = Agence::where('slug', $slug)->firstOrFail();
+
+        // Vitrine en ligne = fonctionnalite payante : une agence suspendue ou dont
+        // l'essai est termine ne doit plus recruter de nouveaux locataires publiquement.
+        abort_unless($agence->estActive(), 404);
+
         Tenant::pour($agence->id);
 
         return $agence;
@@ -28,7 +33,9 @@ class VitrineController extends Controller
 
         $immeubles = Immeuble::withCount([
             'logements as disponibles_count' => fn ($q) => $q->where('statut', 'disponible'),
-        ])->with('medias')->get(['id', 'nom', 'adresse', 'ville', 'photo_couverture']);
+        ])->with('medias')
+            ->orderByDesc('mis_en_avant')
+            ->get(['id', 'nom', 'adresse', 'ville', 'photo_couverture', 'mis_en_avant']);
 
         return response()->json([
             'agence' => [

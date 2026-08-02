@@ -86,21 +86,28 @@ class AuthController extends Controller
             ],
             'agence_telephone' => ['nullable', 'string', 'max:255'],
             'agence_ville'     => ['nullable', 'string', 'max:255'],
+            // Formule que le visiteur a cliquee sur la page tarifs : purement informatif
+            // (aide a la relance manuelle), n'accorde jamais les droits de cette formule.
+            'plan_souhaite'    => ['nullable', 'in:starter,pro,illimite'],
             'admin_nom'        => ['required', 'string', 'max:255'],
             'admin_email'      => ['required', 'email', 'unique:users,email'],
             'admin_password'   => ['required', 'string', 'min:8'],
             'admin_telephone'  => ['nullable', 'string', 'max:255'],
         ]);
 
-        $user = DB::transaction(function () use ($data) {
+        $essai = config('plans.essai');
+
+        $user = DB::transaction(function () use ($data, $essai) {
             $agence = Agence::create([
                 'nom'              => $data['agence_nom'],
                 'slug'             => $data['agence_slug'],
                 'telephone'        => $data['agence_telephone'] ?? null,
                 'ville'            => $data['agence_ville'] ?? null,
                 'plan'             => 'essai',
+                'plan_souhaite'    => $data['plan_souhaite'] ?? null,
                 'statut'           => 'actif',
-                'quota_logements'  => 10,
+                'quota_logements'  => $essai['quota_logements'],
+                'max_utilisateurs' => $essai['max_utilisateurs'],
                 'essai_termine_le' => now()->addDays(14),
             ]);
 
@@ -154,8 +161,17 @@ class AuthController extends Controller
                 'telephone'        => $agence->telephone,
                 'ville'            => $agence->ville,
                 'plan'             => $agence->plan,
+                'plan_souhaite'    => $agence->plan_souhaite,
                 'statut'           => $agence->statut,
+                'active'           => $agence->estActive(),
                 'essai_termine_le' => $agence->essai_termine_le,
+                'jours_restants'   => $agence->essai_termine_le
+                    ? (int) now()->startOfDay()->diffInDays($agence->essai_termine_le->startOfDay(), false)
+                    : null,
+                'quota_logements'  => $agence->quota_logements,
+                'nb_logements'     => $agence->logements()->count(),
+                'max_utilisateurs' => $agence->max_utilisateurs,
+                'nb_utilisateurs'  => $agence->users()->whereIn('role', ['super_admin', 'admin'])->count(),
             ] : null,
         ];
     }

@@ -130,6 +130,15 @@ class ContratController extends Controller
         $l  = $contrat->logement;
         $im = $l?->immeuble;
 
+        // Identite de l'agence proprietaire du contrat : chaque agence edite
+        // ses baux a son propre nom, jamais a celui d'une autre.
+        $ag = $contrat->agence ?: request()->user()?->agence;
+        $A  = $ag ? $ag->entete() : [
+            'nom' => '__________', 'representant' => '__________', 'fonction' => 'Gerant',
+            'adresse' => '__________', 'ville' => 'Dakar',
+            'telephone' => '__________', 'email' => '__________',
+        ];
+
         $civ = $contrat->preneur_civilite ?: 'Monsieur/Madame';
         $nom = trim(($contrat->preneur_prenom ?? '') . ' ' . ($contrat->preneur_nom ?? ''));
         if ($nom === '') $nom = '__________';
@@ -155,15 +164,15 @@ class ContratController extends Controller
             ? max(1, $contrat->date_debut->diffInMonths($contrat->date_fin)) : 12;
 
         $texte = <<<TXT
-TOURSEN IMMOBILIER
-Rue 13x12 Medina, Dakar, Senegal
-Tel : 33 882 27 28 / 77 566 03 77   -   Email : toursen.immo@gmail.com
+{$A['nom']}
+{$A['adresse']}
+Tel : {$A['telephone']}   -   Email : {$A['email']}
 
 CONTRAT DE LOCATION
 
 ENTRE LES SOUSSIGNES :
 
-Toursen Immobilier, represente par Djibril TIMERA, ci-apres denomme le bailleur,
+{$A['nom']}, represente par {$A['representant']}, ci-apres denomme le bailleur,
 D'une part,
 
 ET
@@ -172,7 +181,7 @@ ET
 D'autre part,
 
 Il a ete arrete et convenu ce qui suit :
-Le Bailleur Toursen Immobilier donne en location,
+Le Bailleur {$A['nom']} donne en location,
 Le Preneur {$nom} qui accepte,
 Les locaux dont la designation suit :
 
@@ -252,13 +261,13 @@ exclusive du preneur.
 ELECTION DE DOMICILE
 Pour l'execution des presentes, les parties font election de domicile aux adresses indiquees.
 
-Fait a Dakar, le {$debut}.
+Fait a {$A['ville']}, le {$debut}.
 (Precede de la mention "lu et approuve")
 
 
 LE BAILLEUR                                                  LE PRENEUR
-Toursen Immobilier                                          {$nom}
-Djibril TIMERA
+{$A['nom']}                                          {$nom}
+{$A['representant']}
 TXT;
 
         return response()->json(['contrat_id' => $contrat->id, 'texte' => $texte]);
@@ -276,8 +285,12 @@ TXT;
         $loyer   = (int) round($contrat->montant_loyer);
         $caution = (int) round($contrat->caution);
 
+        $ag = $contrat->agence ?: request()->user()?->agence;
+        $A  = $ag ? $ag->entete() : [];
+
         $data = [
-            'logo'           => public_path('logo-toursen.jpeg'),
+            'agence'         => $A,
+            'logo'           => $A['logo'] ?? null,
             'civ'            => $contrat->preneur_civilite ?: 'Monsieur/Madame',
             'nom'            => $nom,
             'villeImm'       => $im?->ville ?: 'Dakar',

@@ -48,6 +48,16 @@ class LogementController extends Controller
             'description' => ['nullable', 'string'],
         ]);
 
+        // Quota de la formule : 0 = illimite.
+        $agence = $request->user()->agence;
+        if ($agence && $agence->quotaAtteint()) {
+            return response()->json([
+                'message' => "Vous avez atteint la limite de {$agence->quota_logements} logements de votre formule.",
+                'motif'   => 'quota_atteint',
+                'quota'   => $agence->quota_logements,
+            ], 402);
+        }
+
         $logement = Logement::create($data);
         return response()->json($logement, 201);
     }

@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\EspaceLocataireController;
 use App\Http\Controllers\Api\ContratController;
 use App\Http\Controllers\Api\ProfilController;
+use App\Http\Controllers\Api\PlateformeController;
 
 
 // ---------- PUBLIC ----------
@@ -29,6 +30,17 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
+
+    // ---------- CONSOLE PLATEFORME (proprietaire uniquement) ----------
+    Route::middleware('plateforme')->prefix('plateforme')->group(function () {
+        Route::get('/agences', [PlateformeController::class, 'agences']);
+        Route::get('/stats',   [PlateformeController::class, 'stats']);
+        Route::put('/agences/{agence}', [PlateformeController::class, 'modifier']);
+        Route::post('/agences/{agence}/prolonger', [PlateformeController::class, 'prolonger']);
+    });
+
+    // ---------- TOUT LE RESTE EXIGE UN ABONNEMENT VALIDE ----------
+    Route::middleware('abonnement')->group(function () {
 
     // Immeubles
     Route::get('/immeubles', [ImmeubleController::class, 'index']);
@@ -96,5 +108,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/contrats/{contrat}/pdf', [\App\Http\Controllers\Api\ContratController::class, 'pdf']);
 
     Route::get('/paiements/{paiement}/quittance', [\App\Http\Controllers\Api\PaiementController::class, 'quittance']);
+
+    Route::get('/statistiques', [\App\Http\Controllers\Api\StatistiqueController::class, 'index']);
+    }); // fin groupe abonnement
 
 });

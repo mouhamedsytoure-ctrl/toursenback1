@@ -16,7 +16,11 @@ class Immeuble extends Model
 
     protected $fillable = [
         'nom', 'adresse', 'ville', 'description',
-        'latitude', 'longitude', 'photo_couverture', 'created_by',
+        'latitude', 'longitude', 'photo_couverture', 'created_by', 'mis_en_avant',
+    ];
+
+    protected $casts = [
+        'mis_en_avant' => 'boolean',
     ];
 
     public function logements(): HasMany
