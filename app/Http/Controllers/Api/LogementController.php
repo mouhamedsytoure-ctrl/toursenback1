@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Agence;
 use App\Models\Logement;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class LogementController extends Controller
 {
@@ -48,18 +50,32 @@ class LogementController extends Controller
             'description' => ['nullable', 'string'],
         ]);
 
-        // Quota de la formule : 0 = illimite.
-        $agence = $request->user()->agence;
-        if ($agence && $agence->quotaAtteint()) {
+        // Quota de la formule : 0 = illimite. Verrou sur la ligne agence pour
+        // empecher deux creations simultanees de depasser le quota d'une unite
+        // (sans le lockForUpdate, deux requetes concurrentes pourraient toutes
+        // les deux passer le controle avant qu'aucune n'ait encore cree son logement).
+        $agenceId = $request->user()->agence_id;
+
+        $resultat = DB::transaction(function () use ($data, $agenceId) {
+            if ($agenceId) {
+                $agence = Agence::where('id', $agenceId)->lockForUpdate()->first();
+                if ($agence && $agence->quotaAtteint()) {
+                    return ['quota_atteint' => true, 'quota' => $agence->quota_logements];
+                }
+            }
+
+            return ['logement' => Logement::create($data)];
+        });
+
+        if (! empty($resultat['quota_atteint'])) {
             return response()->json([
-                'message' => "Vous avez atteint la limite de {$agence->quota_logements} logements de votre formule.",
+                'message' => "Vous avez atteint la limite de {$resultat['quota']} logements de votre formule.",
                 'motif'   => 'quota_atteint',
-                'quota'   => $agence->quota_logements,
+                'quota'   => $resultat['quota'],
             ], 402);
         }
 
-        $logement = Logement::create($data);
-        return response()->json($logement, 201);
+        return response()->json($resultat['logement'], 201);
     }
 
     public function update(Request $request, Logement $logement)
