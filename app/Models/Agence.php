@@ -10,13 +10,15 @@ class Agence extends Model
     protected $fillable = [
         'nom', 'slug', 'logo', 'telephone', 'whatsapp', 'email', 'adresse', 'ville',
         'representant_legal', 'representant_fonction', 'ninea', 'rccm',
-        'plan', 'plan_souhaite', 'statut', 'quota_logements', 'max_utilisateurs', 'essai_termine_le',
+        'plan', 'plan_souhaite', 'statut', 'quota_logements', 'max_utilisateurs',
+        'essai_termine_le', 'abonnement_expire_le',
     ];
 
     protected $casts = [
-        'quota_logements'  => 'integer',
-        'max_utilisateurs' => 'integer',
-        'essai_termine_le' => 'datetime',
+        'quota_logements'      => 'integer',
+        'max_utilisateurs'     => 'integer',
+        'essai_termine_le'     => 'datetime',
+        'abonnement_expire_le' => 'datetime',
     ];
 
     public function users(): HasMany
@@ -58,11 +60,13 @@ class Agence extends Model
             return false;
         }
 
-        if ($this->plan === 'essai' && $this->essai_termine_le && $this->essai_termine_le->isPast()) {
-            return false;
+        if ($this->plan === 'essai') {
+            return ! $this->essai_termine_le || $this->essai_termine_le->isFuture();
         }
 
-        return true;
+        // Plan payant : abonnement_expire_le null = accord manuel du proprietaire
+        // de la plateforme (sans echeance) ; sinon l'abonnement doit etre a jour.
+        return ! $this->abonnement_expire_le || $this->abonnement_expire_le->isFuture();
     }
 
     /** Quota de logements atteint ? (0 = illimite) */

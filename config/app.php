@@ -54,6 +54,9 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    // URL du front Angular, pour les redirections de paiement (PayDunya).
+    'frontend_url' => env('FRONTEND_URL', 'http://localhost:4200'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

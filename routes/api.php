@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\ContratController;
 use App\Http\Controllers\Api\ProfilController;
 use App\Http\Controllers\Api\PlateformeController;
 use App\Http\Controllers\Api\AgenceController;
+use App\Http\Controllers\Api\AbonnementController;
 
 
 // ---------- PUBLIC ----------
@@ -25,6 +26,9 @@ Route::post('/register', [AuthController::class, 'register'])->middleware('throt
 
 Route::get('/public/{slug}/immeubles', [VitrineController::class, 'immeubles']);
 Route::get('/public/{slug}/immeubles/{immeuble}', [VitrineController::class, 'show']);
+
+// Appele par les serveurs PayDunya (jamais par un navigateur) : pas de jeton disponible ici.
+Route::post('/abonnement/webhook', [AbonnementController::class, 'webhook'])->name('paydunya.webhook');
 
 // ---------- PROTEGE (jeton requis) ----------
 Route::middleware('auth:sanctum')->group(function () {
@@ -35,6 +39,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Profil de l'agence connectee (coordonnees, whatsapp, branding)
     Route::get('/agence', [AgenceController::class, 'show']);
     Route::put('/agence', [AgenceController::class, 'update']);
+
+    // Paiement d'abonnement : volontairement HORS du groupe "abonnement" plus bas,
+    // sinon une agence bloquee ne pourrait jamais payer pour se debloquer.
+    Route::post('/abonnement/payer', [AbonnementController::class, 'payer']);
 
     // ---------- CONSOLE PLATEFORME (proprietaire uniquement) ----------
     Route::middleware('plateforme')->prefix('plateforme')->group(function () {
