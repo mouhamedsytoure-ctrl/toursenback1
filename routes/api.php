@@ -23,6 +23,8 @@ use App\Http\Controllers\Api\AbonnementController;
 // ---------- PUBLIC ----------
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth');
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
+Route::post('/mot-de-passe/oublie', [AuthController::class, 'motDePasseOublie'])->middleware('throttle:auth');
+Route::post('/mot-de-passe/reinitialiser', [AuthController::class, 'reinitialiserMotDePasse'])->middleware('throttle:auth');
 
 Route::get('/public/{slug}/immeubles', [VitrineController::class, 'immeubles']);
 Route::get('/public/{slug}/immeubles/{immeuble}', [VitrineController::class, 'show']);

@@ -9,6 +9,7 @@ use App\Support\Tenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -140,6 +141,53 @@ class AuthController extends Controller
             'token' => $token,
             'user'  => $this->utilisateurPayload($user),
         ], 201);
+    }
+
+    /**
+     * POST /api/mot-de-passe/oublie
+     * Renvoie toujours le meme message, que l'email existe ou non,
+     * pour ne pas laisser deviner quels comptes sont enregistres.
+     */
+    public function motDePasseOublie(Request $request)
+    {
+        $request->validate(['email' => ['required', 'email']]);
+
+        Password::sendResetLink($request->only('email'));
+
+        return response()->json([
+            'message' => "Si un compte existe avec cet email, un lien de reinitialisation vient d'etre envoye.",
+        ]);
+    }
+
+    /**
+     * POST /api/mot-de-passe/reinitialiser
+     * Verifie le token recu par email et met a jour le mot de passe.
+     */
+    public function reinitialiserMotDePasse(Request $request)
+    {
+        $data = $request->validate([
+            'token'                 => ['required', 'string'],
+            'email'                 => ['required', 'email'],
+            'password'              => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $statut = Password::reset($data, function (User $user, string $password) {
+            $user->update(['password' => Hash::make($password)]);
+        });
+
+        if ($statut !== Password::PASSWORD_RESET) {
+            $messages = [
+                Password::INVALID_USER    => "Aucun compte ne correspond a cet email.",
+                Password::INVALID_TOKEN   => "Ce lien de reinitialisation est invalide ou a expire.",
+                Password::RESET_THROTTLED => "Veuillez patienter avant de reessayer.",
+            ];
+
+            throw ValidationException::withMessages([
+                'email' => [$messages[$statut] ?? "Reinitialisation impossible."],
+            ]);
+        }
+
+        return response()->json(['message' => 'Mot de passe reinitialise. Vous pouvez vous connecter.']);
     }
 
     // Forme commune du "user" renvoyee par login/me/register, avec le branding de l'agence.

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Notifications\ReinitialiserMotDePasse;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -24,6 +25,12 @@ class User extends Authenticatable
         'is_active'         => 'boolean',
         'is_platform_admin' => 'boolean',
     ];
+
+    // Lien de reinitialisation vers le front Angular au lieu d'une route web Laravel.
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new ReinitialiserMotDePasse($token));
+    }
 
     // --- Roles ---
     public function isSuperAdmin(): bool { return $this->role === 'super_admin'; }
