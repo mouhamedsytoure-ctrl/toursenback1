@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Agence;
 use App\Models\Immeuble;
+use App\Models\Scopes\AgenceScope;
 use App\Support\Tenant;
+use Illuminate\Http\Request;
 
 class VitrineController extends Controller
 {
@@ -53,6 +55,48 @@ class VitrineController extends Controller
             'agence'    => $this->brandingAgence($agence),
             'immeubles' => $immeubles,
         ]);
+    }
+
+    /**
+     * GET /api/public/annuaire  (PUBLIC, sans connexion)
+     * Tous les immeubles de toutes les agences ACTIVES, tous confondus --
+     * la vitrine globale de la plateforme, distincte de la vitrine par agence.
+     * Filtres optionnels : ville (zone), prix_min, prix_max (sur les logements
+     * disponibles). Les immeubles mis en avant (plan VIP) sortent en tete.
+     */
+    public function annuaire(Request $request)
+    {
+        // estActive() combine plusieurs regles (essai, abonnement, statut) : plus
+        // simple et plus sur de le recalculer en PHP que de le dupliquer en SQL.
+        $agencesActives = Agence::all()->filter(fn ($a) => $a->estActive())->pluck('id');
+
+        $query = Immeuble::withoutGlobalScope(AgenceScope::class)
+            ->whereIn('agence_id', $agencesActives)
+            ->with(['agence:id,nom,slug,logo', 'medias'])
+            ->withCount([
+                'logements as disponibles_count' => fn ($q) => $q->where('statut', 'disponible'),
+            ]);
+
+        if ($request->filled('ville')) {
+            $query->where('ville', 'like', '%' . $request->ville . '%');
+        }
+
+        if ($request->filled('prix_min') || $request->filled('prix_max')) {
+            $query->whereHas('logements', function ($q) use ($request) {
+                $q->where('statut', 'disponible');
+                if ($request->filled('prix_min')) {
+                    $q->where('loyer', '>=', (float) $request->prix_min);
+                }
+                if ($request->filled('prix_max')) {
+                    $q->where('loyer', '<=', (float) $request->prix_max);
+                }
+            });
+        }
+
+        $immeubles = $query->orderByDesc('mis_en_avant')->latest()
+            ->get(['id', 'agence_id', 'nom', 'adresse', 'ville', 'photo_couverture', 'mis_en_avant']);
+
+        return response()->json($immeubles);
     }
 
     // GET /api/public/{slug}/immeubles/{immeuble}  (PUBLIC)

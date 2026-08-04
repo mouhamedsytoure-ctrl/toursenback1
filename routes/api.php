@@ -26,6 +26,10 @@ Route::post('/register', [AuthController::class, 'register'])->middleware('throt
 Route::post('/mot-de-passe/oublie', [AuthController::class, 'motDePasseOublie'])->middleware('throttle:auth');
 Route::post('/mot-de-passe/reinitialiser', [AuthController::class, 'reinitialiserMotDePasse'])->middleware('throttle:auth');
 
+// Annuaire global (toutes agences confondues) : declare avant {slug} par clarte,
+// mais aucune ambiguite possible (nombre de segments differents).
+Route::get('/public/annuaire', [VitrineController::class, 'annuaire']);
+
 Route::get('/public/{slug}/immeubles', [VitrineController::class, 'immeubles']);
 Route::get('/public/{slug}/immeubles/{immeuble}', [VitrineController::class, 'show']);
 
