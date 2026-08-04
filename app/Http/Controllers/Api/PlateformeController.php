@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Agence;
+use App\Models\FactureAbonnement;
 use App\Models\Logement;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -75,6 +76,32 @@ class PlateformeController extends Controller
 
         $enEssai = $agences->filter(fn ($a) => $a->plan === 'essai' && $a->estActive());
 
+        // Evolution sur 12 mois : inscriptions (toujours reelles) et revenus
+        // reellement encaisses (factures payees -- vide tant qu'aucun paiement
+        // automatique n'est encore passe, ce n'est pas une donnee simulee).
+        $evolution = [];
+        for ($i = 11; $i >= 0; $i--) {
+            $mois   = now()->subMonths($i);
+            $debut  = $mois->copy()->startOfMonth();
+            $fin    = $mois->copy()->endOfMonth();
+
+            $evolution[] = [
+                'periode' => $mois->format('Y-m'),
+                'libelle' => $mois->locale('fr')->isoFormat('MMM YY'),
+                'nb_agences' => Agence::whereBetween('created_at', [$debut, $fin])->count(),
+                'revenus'    => (int) FactureAbonnement::where('statut', 'payee')
+                    ->whereBetween('payee_le', [$debut, $fin])->sum('montant'),
+            ];
+        }
+
+        $ceMois  = $evolution[11];
+        $moisPrec = $evolution[10];
+
+        $variation = function (int $actuel, int $precedent): ?float {
+            if ($precedent === 0) return null;
+            return round((($actuel - $precedent) / $precedent) * 100);
+        };
+
         return response()->json([
             'nb_agences'        => $agences->count(),
             'nb_actives'        => $agences->filter(fn ($a) => $a->estActive())->count(),
@@ -87,6 +114,19 @@ class PlateformeController extends Controller
                 fn ($a) => $a->essai_termine_le && $a->essai_termine_le->isBefore(now()->addDays(3))
             )->count(),
             'repartition_plans' => $agences->groupBy('plan')->map->count(),
+
+            'evolution' => $evolution,
+            'comparaison' => [
+                'agences_ce_mois'       => $ceMois['nb_agences'],
+                'agences_mois_dernier'  => $moisPrec['nb_agences'],
+                'variation_agences'     => $variation($ceMois['nb_agences'], $moisPrec['nb_agences']),
+                'revenus_ce_mois'       => $ceMois['revenus'],
+                'revenus_mois_dernier'  => $moisPrec['revenus'],
+                'variation_revenus'     => $variation($ceMois['revenus'], $moisPrec['revenus']),
+            ],
+            'total_annee_courante' => (int) FactureAbonnement::where('statut', 'payee')
+                ->whereYear('payee_le', now()->year)->sum('montant'),
+            'total_encaisse_historique' => (int) FactureAbonnement::where('statut', 'payee')->sum('montant'),
         ]);
     }
 
