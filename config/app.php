@@ -29,6 +29,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Domaine des identifiants de connexion locataire
+    |--------------------------------------------------------------------------
+    |
+    | Les locataires se connectent avec un identifiant genere automatiquement
+    | (prenom.nom@ce-domaine), qui n'est PAS une adresse email reelle. Les
+    | vrais messages (bienvenue, recus...) partent vers Contrat::preneur_email.
+    |
+    */
+
+    'login_email_domain' => env('LOGIN_EMAIL_DOMAIN', 'sits.sn'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |

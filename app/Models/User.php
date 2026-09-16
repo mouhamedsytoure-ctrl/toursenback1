@@ -6,6 +6,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class User extends Authenticatable
 {
@@ -56,5 +57,27 @@ class User extends Authenticatable
         }
         $perm = $this->adminPermissions()->where('module', $module)->first();
         return $perm ? (bool) $perm->{'can_' . $action} : false;
+    }
+
+    /**
+     * Genere un identifiant de connexion du type "prenom.nom@sits.sn" pour un
+     * locataire. Ce n'est PAS une adresse email reelle : uniquement un
+     * identifiant pour se connecter a l'application, jamais utilise pour
+     * envoyer un message (voir Contrat::preneur_email pour le vrai contact).
+     */
+    public static function genererEmailConnexion(string $nom): string
+    {
+        $slug = (string) Str::of($nom)->ascii()->lower()->replaceMatches('/[^a-z0-9]+/', '.')->trim('.');
+        $base = $slug !== '' ? $slug : 'locataire';
+        $domaine = config('app.login_email_domain');
+
+        $email = "{$base}@{$domaine}";
+        $i = 2;
+        while (static::where('email', $email)->exists()) {
+            $email = "{$base}{$i}@{$domaine}";
+            $i++;
+        }
+
+        return $email;
     }
 }

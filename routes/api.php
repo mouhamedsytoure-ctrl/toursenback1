@@ -51,6 +51,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/paiements', [PaiementController::class, 'store']);
     Route::get('/paiements/{paiement}/recu', [PaiementController::class, 'recu']);
     Route::post('/paiements/{paiement}/envoyer-recu', [PaiementController::class, 'envoyerRecu']);
+    Route::post('/paiements/{paiement}/annuler', [PaiementController::class, 'annuler']);
 
     // Reclamations
     Route::get('/reclamations', [ReclamationController::class, 'index']);
@@ -92,6 +93,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/contrats/{contrat}/resilier', [ContratController::class, 'resilier']);
     Route::put('/contrats/{contrat}/bloquer', [ContratController::class, 'bloquer']);
     Route::put('/contrats/{contrat}/archiver', [ContratController::class, 'archiver']);
+    Route::post('/contrats/{contrat}/reinitialiser-acces', [ContratController::class, 'reinitialiserAcces']);
 
     // Modifier son propre profil (email / mot de passe / nom / telephone)
     Route::put('/profil', [ProfilController::class, 'update']);

@@ -12,12 +12,14 @@ class Paiement extends Model
         'contrat_id', 'periode', 'montant', 'mode_paiement', 'statut',
         'date_paiement', 'reference_transaction', 'recu_numero',
         'recu_fichier', 'enregistre_par', 'recu_envoye_at',
+        'motif_annulation', 'annule_le', 'annule_par',
     ];
 
     protected $casts = [
         'montant'         => 'decimal:2',
         'date_paiement'   => 'datetime',
         'recu_envoye_at'  => 'datetime',
+        'annule_le'       => 'datetime',
     ];
 
     /**
@@ -46,5 +48,10 @@ class Paiement extends Model
     public function enregistrePar(): BelongsTo
     {
         return $this->belongsTo(User::class, 'enregistre_par');
+    }
+
+    public function annulePar(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'annule_par');
     }
 }

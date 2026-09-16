@@ -6,7 +6,6 @@ use App\Models\Paiement;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Support\Carbon;
 
 class RecuDisponible extends Notification
 {
@@ -24,6 +23,8 @@ class RecuDisponible extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $paiement = $this->paiement;
+        $contrat = $paiement->contrat;
+        $nom = trim(($contrat?->preneur_prenom ?? '') . ' ' . ($contrat?->preneur_nom ?? ''));
         $periodeLabel = $this->moisFr($paiement->periode);
         $montant = number_format((float) $paiement->montant, 0, '.', ' ');
         $frontend = rtrim(config('app.frontend_url'), '/');
@@ -31,7 +32,7 @@ class RecuDisponible extends Notification
 
         return (new MailMessage)
             ->subject('Votre reçu de loyer est disponible — SITS')
-            ->greeting('Bonjour ' . $notifiable->name . ',')
+            ->greeting('Bonjour' . ($nom !== '' ? ' ' . $nom : '') . ',')
             ->line("Votre paiement de loyer pour {$periodeLabel} ({$montant} FCFA) a bien été enregistré.")
             ->line('Votre reçu est disponible dès maintenant dans votre espace locataire.')
             ->action('Voir mon reçu', $lien)

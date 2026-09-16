@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Contrat;
 use App\Models\Logement;
 use App\Models\User;
+use App\Notifications\BienvenueLocataire;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -54,7 +56,9 @@ class ContratController extends Controller
             'preneur_prenom'         => ['nullable', 'string', 'max:255'],
             'preneur_civilite'       => ['nullable', 'string', 'max:50'],
             'preneur_telephone'      => ['nullable', 'string', 'max:255'],
-            'preneur_email'          => ['required', 'email', 'unique:users,email'],
+            // Email REEL de contact du locataire (recus, bienvenue...). Ce n'est
+            // plus son identifiant de connexion : celui-ci est genere a part.
+            'preneur_email'          => ['required', 'email'],
             'preneur_adresse'        => ['nullable', 'string', 'max:255'],
             'preneur_profession'     => ['nullable', 'string', 'max:255'],
             'preneur_nationalite'    => ['nullable', 'string', 'max:255'],
@@ -76,11 +80,12 @@ class ContratController extends Controller
         $genere = ! $request->filled('password');
         $plain  = $genere ? Str::random(8) : $data['password'];
         $nomComplet = trim(($data['preneur_prenom'] ?? '') . ' ' . $data['preneur_nom']);
+        $emailConnexion = User::genererEmailConnexion($nomComplet);
 
-        $res = DB::transaction(function () use ($data, $plain, $nomComplet) {
+        $res = DB::transaction(function () use ($data, $plain, $nomComplet, $emailConnexion) {
             $user = User::create([
                 'name'      => $nomComplet,
-                'email'     => $data['preneur_email'],
+                'email'     => $emailConnexion,
                 'telephone' => $data['preneur_telephone'] ?? null,
                 'password'  => Hash::make($plain),
                 'role'      => 'locataire',
@@ -116,9 +121,15 @@ class ContratController extends Controller
             return [$user, $contrat];
         });
 
+        // Email de bienvenue avec les identifiants, envoye au VRAI email de contact
+        // (jamais a l'identifiant de connexion genere, qui n'est pas une boite mail).
+        Notification::route('mail', $data['preneur_email'])
+            ->notify(new BienvenueLocataire($nomComplet, $emailConnexion, $plain));
+
         return response()->json([
-            'contrat'      => $res[1]->load('logement.immeuble'),
-            'mot_de_passe' => $genere ? $plain : null,
+            'contrat'         => $res[1]->load('logement.immeuble'),
+            'email_connexion' => $emailConnexion,
+            'mot_de_passe'    => $genere ? $plain : null,
         ], 201);
     }
 
@@ -330,6 +341,49 @@ TXT;
         abort_unless($this->peutGerer($request, 'update'), 403);
         $contrat->update(['archived_at' => now()]);
         return response()->json($contrat->fresh());
+    }
+
+    /**
+     * POST /api/contrats/{contrat}/reinitialiser-acces
+     * Reserve au proprietaire (super admin) : le locataire a oublie son
+     * identifiant/mot de passe, ou s'est trompe d'email de contact a la
+     * creation. Regenere un mot de passe et, si fourni, corrige l'email de
+     * contact reel. Un mail avec les nouveaux identifiants part vers le
+     * (nouveau) vrai email de contact.
+     */
+    public function reinitialiserAcces(Request $request, Contrat $contrat)
+    {
+        abort_unless($request->user()->isSuperAdmin(), 403);
+
+        $data = $request->validate([
+            'nouvel_email_contact' => ['nullable', 'email'],
+        ]);
+
+        $locataire = $contrat->locataire;
+        abort_if(! $locataire, 404, "Ce contrat n'a pas de compte locataire associe.");
+
+        $plain = Str::random(8);
+
+        DB::transaction(function () use ($contrat, $locataire, $plain, $data) {
+            $locataire->update(['password' => Hash::make($plain)]);
+            if (! empty($data['nouvel_email_contact'])) {
+                $contrat->update(['preneur_email' => $data['nouvel_email_contact']]);
+            }
+        });
+
+        $emailContact = $data['nouvel_email_contact'] ?? $contrat->preneur_email;
+        $nom = trim(($contrat->preneur_prenom ?? '') . ' ' . ($contrat->preneur_nom ?? '')) ?: $locataire->name;
+
+        if ($emailContact) {
+            Notification::route('mail', $emailContact)
+                ->notify(new BienvenueLocataire($nom, $locataire->email, $plain));
+        }
+
+        return response()->json([
+            'email_connexion' => $locataire->email,
+            'mot_de_passe'    => $plain,
+            'email_contact'   => $emailContact,
+        ]);
     }
 
     // ---------- Helpers ----------

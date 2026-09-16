@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Paiement;
 use App\Notifications\RecuDisponible;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class PaiementController extends Controller
@@ -29,7 +30,9 @@ class PaiementController extends Controller
         return response()->json($query->latest()->get());
     }
 
-    // POST /api/paiements  (l'admin enregistre un paiement)
+    // POST /api/paiements  (le secretaire/admin confirme qu'un locataire a paye)
+    // Enregistre le paiement ET, s'il est marque paye, envoie aussitot l'email
+    // de recu au locataire : un seul clic cote interface.
     public function store(Request $request)
     {
         abort_unless($request->user()->hasPermission('loyers', 'create'), 403);
@@ -41,11 +44,60 @@ class PaiementController extends Controller
             'mode_paiement' => ['required', 'in:wave,orange_money,especes'],
             'statut'        => ['nullable', 'in:paye,en_attente,retard,impaye'],
         ]);
-        $data['statut'] = $data['statut'] ?? 'paye';
-        $data['enregistre_par'] = $request->user()->id;
+        $statut = $data['statut'] ?? 'paye';
 
-        $paiement = Paiement::create($data);
+        // updateOrCreate : si un paiement (meme annule) existait deja pour ce
+        // contrat/periode, on le remplace plutot que d'echouer sur la
+        // contrainte d'unicite (contrat_id, periode). On efface au passage
+        // une eventuelle annulation precedente puisque c'est un nouvel
+        // enregistrement.
+        $paiement = Paiement::updateOrCreate(
+            ['contrat_id' => $data['contrat_id'], 'periode' => $data['periode']],
+            [
+                'montant'          => $data['montant'],
+                'mode_paiement'    => $data['mode_paiement'],
+                'statut'           => $statut,
+                'enregistre_par'   => $request->user()->id,
+                'date_paiement'    => now(),
+                'motif_annulation' => null,
+                'annule_par'       => null,
+                'annule_le'        => null,
+                'recu_envoye_at'   => null,
+            ]
+        );
+
+        if ($paiement->statut === 'paye') {
+            $this->envoyerNotificationRecuSiPossible($paiement);
+        }
+
         return response()->json($paiement->fresh(), 201);
+    }
+
+    // POST /api/paiements/{paiement}/annuler
+    // Un paiement confirme n'est jamais supprime : il passe en "annule" avec
+    // un motif obligatoire et une trace de qui/quand. Ca permet de corriger
+    // une erreur (mauvaise personne, mauvais montant) sans jamais pouvoir
+    // faire disparaitre silencieusement un paiement deja confirme.
+    public function annuler(Request $request, Paiement $paiement)
+    {
+        abort_unless($request->user()->hasPermission('loyers', 'delete'), 403);
+
+        $data = $request->validate([
+            'motif' => ['required', 'string', 'min:5', 'max:500'],
+        ]);
+
+        if ($paiement->statut === 'annule') {
+            return response()->json(['message' => 'Ce paiement est déjà annulé.'], 422);
+        }
+
+        $paiement->update([
+            'statut'           => 'annule',
+            'motif_annulation' => $data['motif'],
+            'annule_par'       => $request->user()->id,
+            'annule_le'        => now(),
+        ]);
+
+        return response()->json($paiement->fresh());
     }
 
     // GET /api/paiements/{paiement}/recu  -> donnees du recu (JSON)
@@ -68,8 +120,8 @@ class PaiementController extends Controller
     }
 
     // POST /api/paiements/{paiement}/envoyer-recu
-    // Le secretaire/admin clique pour prevenir le locataire par email que
-    // son recu du mois est disponible dans son espace.
+    // Renvoi manuel (ex: le premier envoi automatique a echoue, ou l'email de
+    // contact vient d'etre corrige).
     public function envoyerRecu(Request $request, Paiement $paiement)
     {
         abort_unless($request->user()->hasPermission('loyers', 'update'), 403);
@@ -80,21 +132,33 @@ class PaiementController extends Controller
             ], 422);
         }
 
-        $paiement->load('contrat.locataire');
-        $locataire = $paiement->contrat?->locataire;
-
-        if (! $locataire || ! $locataire->email) {
+        if (! $this->envoyerNotificationRecuSiPossible($paiement)) {
             return response()->json([
-                'message' => "Ce locataire n'a pas d'adresse email enregistrée.",
+                'message' => "Ce locataire n'a pas d'email de contact enregistré.",
             ], 422);
         }
 
-        $locataire->notify(new RecuDisponible($paiement));
+        return response()->json($paiement->fresh());
+    }
+
+    // Envoie la notification "reçu disponible" vers le VRAI email de contact
+    // du locataire (Contrat::preneur_email), jamais vers son identifiant de
+    // connexion. Retourne false si aucun email de contact n'est enregistré.
+    private function envoyerNotificationRecuSiPossible(Paiement $paiement): bool
+    {
+        $paiement->load('contrat');
+        $email = $paiement->contrat?->preneur_email;
+
+        if (! $email) {
+            return false;
+        }
+
+        Notification::route('mail', $email)->notify(new RecuDisponible($paiement));
 
         $paiement->recu_envoye_at = now();
         $paiement->save();
 
-        return response()->json($paiement->fresh());
+        return true;
     }
 
     // GET /api/paiements/{paiement}/quittance  -> QUITTANCE en PDF (style agence)
