@@ -11,12 +11,13 @@ class Paiement extends Model
     protected $fillable = [
         'contrat_id', 'periode', 'montant', 'mode_paiement', 'statut',
         'date_paiement', 'reference_transaction', 'recu_numero',
-        'recu_fichier', 'enregistre_par',
+        'recu_fichier', 'enregistre_par', 'recu_envoye_at',
     ];
 
     protected $casts = [
-        'montant'       => 'decimal:2',
-        'date_paiement' => 'datetime',
+        'montant'         => 'decimal:2',
+        'date_paiement'   => 'datetime',
+        'recu_envoye_at'  => 'datetime',
     ];
 
     /**

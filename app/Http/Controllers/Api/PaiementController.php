@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Paiement;
+use App\Notifications\RecuDisponible;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -64,6 +65,36 @@ class PaiementController extends Controller
             'mode_paiement' => $paiement->mode_paiement,
             'statut'        => $paiement->statut,
         ]);
+    }
+
+    // POST /api/paiements/{paiement}/envoyer-recu
+    // Le secretaire/admin clique pour prevenir le locataire par email que
+    // son recu du mois est disponible dans son espace.
+    public function envoyerRecu(Request $request, Paiement $paiement)
+    {
+        abort_unless($request->user()->hasPermission('loyers', 'update'), 403);
+
+        if ($paiement->statut !== 'paye') {
+            return response()->json([
+                'message' => "Ce paiement n'est pas encore marqué payé.",
+            ], 422);
+        }
+
+        $paiement->load('contrat.locataire');
+        $locataire = $paiement->contrat?->locataire;
+
+        if (! $locataire || ! $locataire->email) {
+            return response()->json([
+                'message' => "Ce locataire n'a pas d'adresse email enregistrée.",
+            ], 422);
+        }
+
+        $locataire->notify(new RecuDisponible($paiement));
+
+        $paiement->recu_envoye_at = now();
+        $paiement->save();
+
+        return response()->json($paiement->fresh());
     }
 
     // GET /api/paiements/{paiement}/quittance  -> QUITTANCE en PDF (style agence)

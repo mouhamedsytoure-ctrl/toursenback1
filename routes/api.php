@@ -50,6 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/paiements', [PaiementController::class, 'index']);
     Route::post('/paiements', [PaiementController::class, 'store']);
     Route::get('/paiements/{paiement}/recu', [PaiementController::class, 'recu']);
+    Route::post('/paiements/{paiement}/envoyer-recu', [PaiementController::class, 'envoyerRecu']);
 
     // Reclamations
     Route::get('/reclamations', [ReclamationController::class, 'index']);
