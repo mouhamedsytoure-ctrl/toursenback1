@@ -15,5 +15,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: '*');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // API pure : on rend toujours les erreurs en JSON, meme si la requete
+        // n'envoie pas Accept: application/json (evite qu'une erreur de
+        // validation redirige silencieusement au lieu de renvoyer le detail).
+        $exceptions->shouldRenderJsonWhen(fn () => true);
     })->create();
