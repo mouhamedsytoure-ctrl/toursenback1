@@ -65,15 +65,19 @@ class User extends Authenticatable
      * identifiant pour se connecter a l'application, jamais utilise pour
      * envoyer un message (voir Contrat::preneur_email pour le vrai contact).
      */
-    public static function genererEmailConnexion(string $nom): string
+    public static function genererEmailConnexion(string $nom, ?int $excludeUserId = null): string
     {
         $slug = (string) Str::of($nom)->ascii()->lower()->replaceMatches('/[^a-z0-9]+/', '.')->trim('.');
         $base = $slug !== '' ? $slug : 'locataire';
         $domaine = config('app.login_email_domain');
 
+        $existe = fn (string $email) => static::where('email', $email)
+            ->when($excludeUserId, fn ($q) => $q->where('id', '!=', $excludeUserId))
+            ->exists();
+
         $email = "{$base}@{$domaine}";
         $i = 2;
-        while (static::where('email', $email)->exists()) {
+        while ($existe($email)) {
             $email = "{$base}{$i}@{$domaine}";
             $i++;
         }

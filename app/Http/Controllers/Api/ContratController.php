@@ -347,9 +347,11 @@ TXT;
      * POST /api/contrats/{contrat}/reinitialiser-acces
      * Reserve au proprietaire (super admin) : le locataire a oublie son
      * identifiant/mot de passe, ou s'est trompe d'email de contact a la
-     * creation. Regenere un mot de passe et, si fourni, corrige l'email de
-     * contact reel. Un mail avec les nouveaux identifiants part vers le
-     * (nouveau) vrai email de contact.
+     * creation. Remet l'identifiant de connexion au format standard
+     * (prenom.nom@...) et le mot de passe a la valeur par defaut "passer" —
+     * remis en main propre par le proprietaire, a charge pour le locataire de
+     * le changer ensuite. Ne touche ni au contrat, ni a l'historique des
+     * paiements : seuls les identifiants de connexion changent.
      */
     public function reinitialiserAcces(Request $request, Contrat $contrat)
     {
@@ -362,25 +364,26 @@ TXT;
         $locataire = $contrat->locataire;
         abort_if(! $locataire, 404, "Ce contrat n'a pas de compte locataire associe.");
 
-        $plain = Str::random(8);
+        $plain = 'passer';
+        $nom = trim(($contrat->preneur_prenom ?? '') . ' ' . ($contrat->preneur_nom ?? '')) ?: $locataire->name;
+        $emailConnexion = User::genererEmailConnexion($nom, excludeUserId: $locataire->id);
 
-        DB::transaction(function () use ($contrat, $locataire, $plain, $data) {
-            $locataire->update(['password' => Hash::make($plain)]);
+        DB::transaction(function () use ($contrat, $locataire, $plain, $emailConnexion, $data) {
+            $locataire->update(['password' => Hash::make($plain), 'email' => $emailConnexion]);
             if (! empty($data['nouvel_email_contact'])) {
                 $contrat->update(['preneur_email' => $data['nouvel_email_contact']]);
             }
         });
 
         $emailContact = $data['nouvel_email_contact'] ?? $contrat->preneur_email;
-        $nom = trim(($contrat->preneur_prenom ?? '') . ' ' . ($contrat->preneur_nom ?? '')) ?: $locataire->name;
 
         if ($emailContact) {
             Notification::route('mail', $emailContact)
-                ->notify(new BienvenueLocataire($nom, $locataire->email, $plain));
+                ->notify(new BienvenueLocataire($nom, $emailConnexion, $plain));
         }
 
         return response()->json([
-            'email_connexion' => $locataire->email,
+            'email_connexion' => $emailConnexion,
             'mot_de_passe'    => $plain,
             'email_contact'   => $emailContact,
         ]);
