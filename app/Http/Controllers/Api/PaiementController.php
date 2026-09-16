@@ -101,8 +101,9 @@ class PaiementController extends Controller
     }
 
     // GET /api/paiements/{paiement}/recu  -> donnees du recu (JSON)
-    public function recu(Paiement $paiement)
+    public function recu(Request $request, Paiement $paiement)
     {
+        $this->autoriserAccesPaiement($request, $paiement);
         $paiement->load('contrat.locataire', 'contrat.logement.immeuble');
 
         return response()->json([
@@ -162,8 +163,9 @@ class PaiementController extends Controller
     }
 
     // GET /api/paiements/{paiement}/quittance  -> QUITTANCE en PDF (style agence)
-    public function quittance(Paiement $paiement)
+    public function quittance(Request $request, Paiement $paiement)
     {
+        $this->autoriserAccesPaiement($request, $paiement);
         $paiement->load('contrat.locataire', 'contrat.logement.immeuble');
         $c  = $paiement->contrat;
         $lg = $c?->logement;
@@ -196,6 +198,18 @@ class PaiementController extends Controller
     }
 
     // "2026-06" -> "JUIN 2026"
+    // Un locataire ne peut voir/telecharger que SON PROPRE recu (sinon
+    // n'importe qui pourrait lire le nom, l'adresse et le loyer d'un autre
+    // locataire en changeant juste l'id dans l'URL). Le staff (admin/
+    // secretaire/super admin) garde acces a tout, comme sur /paiements.
+    private function autoriserAccesPaiement(Request $request, Paiement $paiement): void
+    {
+        $user = $request->user();
+        if ($user->isLocataire()) {
+            abort_unless($paiement->contrat?->user_id === $user->id, 403);
+        }
+    }
+
     private function moisFr(?string $periode): string
     {
         if (! $periode) return '';
