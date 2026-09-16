@@ -23,10 +23,18 @@ class DashboardController extends Controller
         $encaisse = (float) Paiement::where('periode', $periode)
             ->where('statut', 'paye')->sum('montant');
 
-        $attendu = (float) Contrat::where('statut', 'actif')->sum('montant_loyer');
+        $contratsActifs = Contrat::where('statut', 'actif')->get(['id', 'montant_loyer']);
+        $attendu = (float) $contratsActifs->sum('montant_loyer');
 
-        $impayes = Paiement::where('periode', $periode)
-            ->where('statut', '!=', 'paye');
+        // Un locataire est "impaye" des qu'aucun paiement "paye" n'existe pour
+        // lui ce mois-ci (aucune ligne n'est creee tant que personne n'a
+        // confirme le paiement : chercher un statut different de "paye" ne
+        // trouve donc jamais rien, contrairement a une comparaison par
+        // absence de contrat_id parmi les paiements payes).
+        $contratIdsPayes = Paiement::where('periode', $periode)
+            ->where('statut', 'paye')
+            ->pluck('contrat_id');
+        $impayesContrats = $contratsActifs->whereNotIn('id', $contratIdsPayes);
 
         $totalLogements = Logement::count();
         $loues          = Logement::where('statut', 'loue')->count();
@@ -38,8 +46,8 @@ class DashboardController extends Controller
             'taux_occupation'    => $totalLogements > 0 ? round($loues / $totalLogements * 100) : 0,
             'logements_loues'    => $loues,
             'logements_total'    => $totalLogements,
-            'impayes_nombre'     => (clone $impayes)->count(),
-            'impayes_montant'    => (float) (clone $impayes)->sum('montant'),
+            'impayes_nombre'     => $impayesContrats->count(),
+            'impayes_montant'    => (float) $impayesContrats->sum('montant_loyer'),
             'reclamations_ouvertes' => Reclamation::where('statut', '!=', 'resolu')->count(),
             'nb_immeubles'       => Immeuble::count(),
             'nb_locataires'      => User::where('role', 'locataire')->count(),
