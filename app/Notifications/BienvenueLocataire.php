@@ -14,6 +14,7 @@ class BienvenueLocataire extends Notification
         public string $nom,
         public string $emailConnexion,
         public string $motDePasse,
+        public ?string $contratPdf = null,
     ) {
     }
 
@@ -26,7 +27,7 @@ class BienvenueLocataire extends Notification
     {
         $frontend = rtrim(config('app.frontend_url'), '/');
 
-        return (new MailMessage)
+        $message = (new MailMessage)
             ->subject('Bienvenue chez SITS — votre espace locataire est prêt')
             ->greeting('Bonjour ' . $this->nom . ',')
             ->line("Votre compte locataire vient d'être créé sur l'application SITS.")
@@ -37,5 +38,12 @@ class BienvenueLocataire extends Notification
             ->line("Mot de passe provisoire : **{$this->motDePasse}**")
             ->line('Merci de changer ce mot de passe dès votre première connexion, depuis votre espace.')
             ->line("Cet identifiant sert uniquement à vous connecter à l'application : les messages de l'agence continueront de vous parvenir sur votre adresse email habituelle.");
+
+        if ($this->contratPdf !== null) {
+            $message->line('Vous trouverez votre contrat de location en pièce jointe.')
+                ->attachData($this->contratPdf, 'contrat.pdf', ['mime' => 'application/pdf']);
+        }
+
+        return $message;
     }
 }

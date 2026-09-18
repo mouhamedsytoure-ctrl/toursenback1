@@ -10,8 +10,8 @@ use App\Notifications\BienvenueLocataire;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Str;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class ContratController extends Controller
@@ -77,8 +77,10 @@ class ContratController extends Controller
             'jour_echeance'          => ['nullable', 'integer', 'between:1,31'],
         ]);
 
-        $genere = ! $request->filled('password');
-        $plain  = $genere ? Str::random(8) : $data['password'];
+        // Mot de passe de depart fixe ("passer"), sauf si l'admin en saisit un
+        // explicitement. Coherent avec la reinitialisation d'acces ; le
+        // locataire est invite a le changer des sa premiere connexion.
+        $plain = $request->filled('password') ? $data['password'] : 'passer';
         $nomComplet = trim(($data['preneur_prenom'] ?? '') . ' ' . $data['preneur_nom']);
         $emailConnexion = User::genererEmailConnexion($nomComplet);
 
@@ -121,15 +123,30 @@ class ContratController extends Controller
             return [$user, $contrat];
         });
 
-        // Email de bienvenue avec les identifiants, envoye au VRAI email de contact
-        // (jamais a l'identifiant de connexion genere, qui n'est pas une boite mail).
-        Notification::route('mail', $data['preneur_email'])
-            ->notify(new BienvenueLocataire($nomComplet, $emailConnexion, $plain));
+        // Email de bienvenue avec les identifiants + le contrat en piece
+        // jointe, envoye au VRAI email de contact (jamais a l'identifiant de
+        // connexion genere, qui n'est pas une boite mail). Le compte/contrat
+        // sont deja crees a ce stade : un souci d'envoi (panne Resend,
+        // domaine pas encore verifie, PDF qui echoue...) ne doit jamais faire
+        // planter la reponse ni laisser croire que rien n'a ete cree.
+        $emailEnvoye = true;
+        try {
+            $contratCharge = $res[1]->load('logement.immeuble');
+            $contratPdf = Pdf::loadView('contrats.bail', $this->construireDonneesBail($contratCharge))
+                ->setPaper('a4')->output();
+
+            Notification::route('mail', $data['preneur_email'])
+                ->notify(new BienvenueLocataire($nomComplet, $emailConnexion, $plain, $contratPdf));
+        } catch (\Throwable $e) {
+            $emailEnvoye = false;
+            Log::warning("Echec envoi email de bienvenue pour le contrat {$res[1]->id}: " . $e->getMessage());
+        }
 
         return response()->json([
             'contrat'         => $res[1]->load('logement.immeuble'),
             'email_connexion' => $emailConnexion,
-            'mot_de_passe'    => $genere ? $plain : null,
+            'mot_de_passe'    => $plain,
+            'email_envoye'    => $emailEnvoye,
         ], 201);
     }
 
@@ -278,34 +295,7 @@ TXT;
     public function pdf(Contrat $contrat)
     {
         $contrat->load('logement.immeuble');
-        $l = $contrat->logement;
-        $im = $l?->immeuble;
-
-        $nom = trim(($contrat->preneur_prenom ?? '') . ' ' . ($contrat->preneur_nom ?? ''));
-        if ($nom === '') $nom = '__________';
-        $loyer   = (int) round($contrat->montant_loyer);
-        $caution = (int) round($contrat->caution);
-
-        $data = [
-            'logo'           => public_path('logo-toursen.jpeg'),
-            'civ'            => $contrat->preneur_civilite ?: 'Monsieur/Madame',
-            'nom'            => $nom,
-            'villeImm'       => $im?->ville ?: 'Dakar',
-            'adresseImm'     => $im?->adresse ?: ($im?->nom ?? '__________'),
-            'etage'          => $this->labelEtage($l?->etage ?? 0),
-            'typeLog'        => $l?->type ? str_replace('_', ' ', $l->type) : 'logement',
-            'usage'          => $contrat->usage ?: 'domestique',
-            'compo'          => $contrat->composition ?: '__________',
-            'loyer'          => $loyer,
-            'loyerLettres'   => $this->enLettres($loyer),
-            'jourTxt'        => str_pad((string) (int) ($contrat->jour_echeance ?? 5), 2, '0', STR_PAD_LEFT),
-            'debut'          => $contrat->date_debut?->locale('fr')->translatedFormat('d F Y') ?? '__________',
-            'fin'            => $contrat->date_fin?->locale('fr')->translatedFormat('d F Y') ?? '__________',
-            'caution'        => $caution,
-            'cautionLettres' => $this->enLettres($caution),
-            'moisCaution'    => $loyer > 0 ? max(1, (int) round($caution / $loyer)) : 2,
-            'nbMois'         => ($contrat->date_debut && $contrat->date_fin) ? max(1, $contrat->date_debut->diffInMonths($contrat->date_fin)) : 12,
-        ];
+        $data = $this->construireDonneesBail($contrat);
 
         return Pdf::loadView('contrats.bail', $data)->setPaper('a4')->stream('contrat_' . $contrat->id . '.pdf');
     }
@@ -376,20 +366,62 @@ TXT;
         });
 
         $emailContact = $data['nouvel_email_contact'] ?? $contrat->preneur_email;
+        $emailEnvoye = false;
 
         if ($emailContact) {
-            Notification::route('mail', $emailContact)
-                ->notify(new BienvenueLocataire($nom, $emailConnexion, $plain));
+            try {
+                Notification::route('mail', $emailContact)
+                    ->notify(new BienvenueLocataire($nom, $emailConnexion, $plain));
+                $emailEnvoye = true;
+            } catch (\Throwable $e) {
+                Log::warning("Echec envoi email de reinitialisation pour le contrat {$contrat->id}: " . $e->getMessage());
+            }
         }
 
         return response()->json([
             'email_connexion' => $emailConnexion,
             'mot_de_passe'    => $plain,
             'email_contact'   => $emailContact,
+            'email_envoye'    => $emailEnvoye,
         ]);
     }
 
     // ---------- Helpers ----------
+    // Donnees du bail (utilisees pour le PDF telechargeable ET pour la piece
+    // jointe envoyee par email a la creation du compte). $contrat doit deja
+    // avoir 'logement.immeuble' charge.
+    private function construireDonneesBail(Contrat $contrat): array
+    {
+        $l  = $contrat->logement;
+        $im = $l?->immeuble;
+
+        $nom = trim(($contrat->preneur_prenom ?? '') . ' ' . ($contrat->preneur_nom ?? ''));
+        if ($nom === '') $nom = '__________';
+        $loyer   = (int) round($contrat->montant_loyer);
+        $caution = (int) round($contrat->caution);
+
+        return [
+            'logo'           => public_path('logo-toursen.jpeg'),
+            'civ'            => $contrat->preneur_civilite ?: 'Monsieur/Madame',
+            'nom'            => $nom,
+            'villeImm'       => $im?->ville ?: 'Dakar',
+            'adresseImm'     => $im?->adresse ?: ($im?->nom ?? '__________'),
+            'etage'          => $this->labelEtage($l?->etage ?? 0),
+            'typeLog'        => $l?->type ? str_replace('_', ' ', $l->type) : 'logement',
+            'usage'          => $contrat->usage ?: 'domestique',
+            'compo'          => $contrat->composition ?: '__________',
+            'loyer'          => $loyer,
+            'loyerLettres'   => $this->enLettres($loyer),
+            'jourTxt'        => str_pad((string) (int) ($contrat->jour_echeance ?? 5), 2, '0', STR_PAD_LEFT),
+            'debut'          => $contrat->date_debut?->locale('fr')->translatedFormat('d F Y') ?? '__________',
+            'fin'            => $contrat->date_fin?->locale('fr')->translatedFormat('d F Y') ?? '__________',
+            'caution'        => $caution,
+            'cautionLettres' => $this->enLettres($caution),
+            'moisCaution'    => $loyer > 0 ? max(1, (int) round($caution / $loyer)) : 2,
+            'nbMois'         => ($contrat->date_debut && $contrat->date_fin) ? max(1, $contrat->date_debut->diffInMonths($contrat->date_fin)) : 12,
+        ];
+    }
+
     private function labelEtage(int $e): string
     {
         if ($e === 0) return 'rez-de-chaussee';
