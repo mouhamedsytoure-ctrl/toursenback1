@@ -37,7 +37,10 @@ class EspaceLocataireController extends Controller
 
         $paiements = Paiement::where('contrat_id', $contrat->id)->latest()->get();
         $periode = $this->periodeCourante();
-        $paye = $paiements->contains(fn ($p) => $p->periode === $periode && $p->statut === 'paye');
+        // Le mois d'entree n'est jamais signale comme impaye : il est deja
+        // couvert par la caution versee a la signature (hors application).
+        $premierMois = $contrat->date_debut?->format('Y-m') === $periode;
+        $paye = $premierMois || $paiements->contains(fn ($p) => $p->periode === $periode && $p->statut === 'paye');
 
         return response()->json([
             'contrat'      => $contrat,

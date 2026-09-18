@@ -23,18 +23,22 @@ class DashboardController extends Controller
         $encaisse = (float) Paiement::where('periode', $periode)
             ->where('statut', 'paye')->sum('montant');
 
-        $contratsActifs = Contrat::where('statut', 'actif')->get(['id', 'montant_loyer']);
+        $contratsActifs = Contrat::where('statut', 'actif')->get(['id', 'montant_loyer', 'date_debut']);
         $attendu = (float) $contratsActifs->sum('montant_loyer');
 
         // Un locataire est "impaye" des qu'aucun paiement "paye" n'existe pour
         // lui ce mois-ci (aucune ligne n'est creee tant que personne n'a
         // confirme le paiement : chercher un statut different de "paye" ne
         // trouve donc jamais rien, contrairement a une comparaison par
-        // absence de contrat_id parmi les paiements payes).
+        // absence de contrat_id parmi les paiements payes). Le mois d'entree
+        // n'est jamais compte comme impaye : il est deja couvert par la
+        // caution versee a la signature.
         $contratIdsPayes = Paiement::where('periode', $periode)
             ->where('statut', 'paye')
             ->pluck('contrat_id');
-        $impayesContrats = $contratsActifs->whereNotIn('id', $contratIdsPayes);
+        $impayesContrats = $contratsActifs
+            ->reject(fn ($c) => $c->date_debut?->format('Y-m') === $periode)
+            ->whereNotIn('id', $contratIdsPayes);
 
         $totalLogements = Logement::count();
         $loues          = Logement::where('statut', 'loue')->count();
